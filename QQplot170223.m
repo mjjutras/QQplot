@@ -70,32 +70,54 @@ rsplst = ['IW0604173.2b'; 'IW0604173.3a'; 'IW0604183.2a'; 'IW0604183.3a';
 
 datdir = 'R:\Mike\Matlab_analyzed_data_Emory_NHP\SUA-VPC\FTrate\090225\';
 
+batch1 = [];
+batch2 = [];
 for fillop = 1:size(rsplst,1)
     fid = rsplst(fillop,1:9)
     cellid = rsplst(fillop,11:12)
 
-    % all presentations
-    f1 = load(fullfile(datdir,[fid 'fratenov.mat']));
-    f2 = load(fullfile(datdir,[fid 'fraterep.mat']));
+%     % all presentations
+%     f1 = load(fullfile(datdir,[fid 'fratenov.mat']));
+%     f2 = load(fullfile(datdir,[fid 'fraterep.mat']));
     % only presentations without back-to-back repetitions
-    f3 = load(fullfile(datdir,[fid 'fratenov_lag.mat']));
-    f4 = load(fullfile(datdir,[fid 'fraterep_lag.mat']));
+    f1 = load(fullfile(datdir,[fid 'fratenov_lag.mat']));
+    f2 = load(fullfile(datdir,[fid 'fraterep_lag.mat']));
 
     spkind = strmatch('s',f1.timelock.label);
     spklab = cell2mat(f1.timelock.label(spkind));
 
-    for chlop = 1:length(spkind)
+    for chnlop = 1:length(spkind)
 
-        if ismember([fid '.' spklab(chlop,6:7)],rsplst,'rows')
+        if ismember([fid '.' spklab(chnlop,6:7)],rsplst,'rows')
 
             % determine baseline: mean # of spikes across trial baseline periods
             basetim1 = ft_nearest(f1.timelock.time,-0.8):ft_nearest(f1.timelock.time,-0.001);
             basetim2 = ft_nearest(f2.timelock.time,-0.8):ft_nearest(f2.timelock.time,-0.001);
             % total number of spikes in each baseline period (each trial)
-            base1 = squeeze(sum(f1.timelock.trial(:,chlop,basetim1),3));
-            base2 = squeeze(sum(f2.timelock.trial(:,chlop,basetim2),3));
+            base1 = squeeze(sum(f1.timelock.trial(:,chnlop,basetim1),3));
+            base2 = squeeze(sum(f2.timelock.trial(:,chnlop,basetim2),3));
             % mean # of spikes across 800 ms baseline periods
-            baseline = mean([base1; base2]);
+            basemean = mean([base1; base2]);
+            basestd = std([base1; base2]);
             
-            resptim1 = ft_nearest(f1.timelock.time,-0.8):ft_nearest(f1.timelock.time,-0.001);
+            resp1tim = ft_nearest(f1.timelock.time,0.1):ft_nearest(f1.timelock.time,0.599);
+            resp2tim = ft_nearest(f2.timelock.time,0.1):ft_nearest(f2.timelock.time,0.599);
+            resp1trl = ~isnan(squeeze(f1.timelock.trial(:,chnlop,ft_nearest(f1.timelock.time,0.599))));
+            resp2trl = ~isnan(squeeze(f2.timelock.trial(:,chnlop,ft_nearest(f2.timelock.time,0.599))));
+            resp1 = squeeze(sum(f1.timelock.trial(resp1trl,chnlop,resp1tim),3));
+            resp2 = squeeze(sum(f2.timelock.trial(resp2trl,chnlop,resp2tim),3));
+            
+            % normalized score  =  {(spikes-sub-i) minus (.75*background mean)} / (.75*background standard deviation)
+            resp1norm = (resp1-0.625*basemean) / 0.625*basestd;
+            resp2norm = (resp2-0.625*basemean) / 0.625*basestd;
+            
+            batch1 = [batch1; resp1norm];
+            batch2 = [batch2; resp2norm];
+            
+        end
+        
+    end
+    
+end
+            
             
